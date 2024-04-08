@@ -7,10 +7,11 @@
 #include <string.h>
 #include "encoder.h"
 
-#define SSD1306_ADDR  0x78 // 0x3C multiplied with 2
+#define SSD1306_ADDR  0x78
 #define SCREEN_XA 10
-#define HEAD_FONT u8g2_font_9x15B_tf //u8g2_font_7x13B_tf
+#define HEAD_FONT u8g2_font_9x15B_tf 
 #define PAGE_FONT u8g2_font_7x13B_tf
+#define MENU 5
 
 u8g2_t u8g2;
 
@@ -66,7 +67,6 @@ const char *main_items[] = {
 	"Jump",
 	"System info",
 	"Dev info",
-	"Shutdown",
 	"Temperature"
 };
 
@@ -83,18 +83,20 @@ void weld_page(void);
 void main_menu(void);
 void jump_page(void);
 void system_page(void);
-void shutdown_page(void);
+//void shutdown_page(void);
 void info_page(void);
 void temps_page(void);
-void cut_off(void);
-void save_on_eeprom(void);
-void shut_down(void);
+//void cut_off(void);
+//void save_on_eeprom(void);
+//void shut_down(void);
 void menu(void);
 void jump(void);
 
 
 int main(void){
-	u8g2_Setup_ssd1306_i2c_128x64_noname_f(&u8g2, U8G2_R0, u8x8_byte_avr_hw_i2c, u8x8_avr_delay);
+	u8g2_Setup_ssd1306_i2c_128x64_noname_f(&u8g2, U8G2_R0, 
+					       u8x8_byte_avr_hw_i2c, 
+					       u8x8_avr_delay);
 	u8g2_SetI2CAddress(&u8g2, SSD1306_ADDR);
 	u8g2_InitDisplay(&u8g2);
 	u8g2_SetPowerSave(&u8g2, 0);
@@ -126,6 +128,8 @@ int main(void){
 	return 0;
 }
 
+/*******************************************************************/
+
 /***************ISRs*****************/
 
 ISR(INT0_vect){
@@ -143,7 +147,7 @@ ISR(INT0_vect){
 ISR(INT1_vect){
 	_delay_ms(80);
 	if(!hold){
-		if(page == 6){//menu
+		if(page == MENU){//menu
 			jump_last_cnt = 0;
 			page = menu_last_cnt;
 			int1_val = 0;
@@ -168,9 +172,11 @@ ISR(TIMER1_COMPA_vect){
 	PORTB &= ~(1<<1);
 }
 
+/****************************end_ISRs*********************************/
 
+/*********************************************************************/
 
-/****************************functions********************************/
+/*************************Init_functions******************************/
 
 
 void io_setup(void){
@@ -205,6 +211,10 @@ void timer1_setup(void){
 	//GTCCR = 0;
 }
 
+/*************************_end_init_*******************************/
+
+/***********************_measurement_*****************************/
+
 uint16_t adc_read(uint8_t pin){
 	uint16_t adval = 0;
 	
@@ -219,6 +229,12 @@ uint16_t adc_read(uint8_t pin){
 
 	return adval;
 }
+
+/**********************_end_measurement_****************************/
+
+/******************************************************************/
+
+/***********************_calculations_******************************/
 
 uint16_t temp_convert(uint16_t ADC_val)
 {
@@ -242,6 +258,11 @@ int range(uint8_t loop, int min, int max, int value){
 	return value;
 }
 
+/*************************_end_calculations_************************/
+
+/*******************************************************************/
+
+/*************************_pages_***********************************/
 
 void weld_page(void){
 	u8g2_ClearBuffer(&u8g2);
@@ -263,7 +284,7 @@ void main_menu(void){
 	u8g2_SetFont(&u8g2, HEAD_FONT);
 	u8g2_SetFontRefHeightText(&u8g2);
 	u8g2_SetFontPosTop(&u8g2);
-	sprintf(R_count_str, "MENU: %d/5", R_count);
+	sprintf(R_count_str, "MENU: %d/%d", R_count, MENU);
 	u8g2_SetDrawColor(&u8g2, 1);
 	u8g2_DrawStr(&u8g2, 20, 0, R_count_str);
 	u8g2_SetFont(&u8g2, PAGE_FONT);
@@ -335,16 +356,6 @@ void system_page(void){
 	u8g2_SendBuffer(&u8g2);	
 }
 
-void shutdown_page(void){
-	u8g2_ClearBuffer(&u8g2);
-	u8g2_SetFont(&u8g2, HEAD_FONT);
-	u8g2_SetFontRefHeightText(&u8g2);
-	u8g2_SetFontPosTop(&u8g2);
-	u8g2_SetDrawColor(&u8g2, 1);
-	u8g2_DrawStr(&u8g2, 5, 0, "Save&shutdown");
-	u8g2_SendBuffer(&u8g2);	
-}
-
 void info_page(void){
 	u8g2_ClearBuffer(&u8g2);
 	u8g2_SetFont(&u8g2, HEAD_FONT);
@@ -376,48 +387,40 @@ void temps_page(void){
 	u8g2_SendBuffer(&u8g2);	
 }
 
-void cut_off(void){
-	
-}
+/***************************_end_pages_*********************************/
 
-void save_on_eeprom(void){
+/**********************************************************************/
 
-}
-
-void shut_down(void){
-
-}
-
-
+/*************************_menu_functional_****************************/
 void menu(void){
 	switch(page){
-		case 0:	
+		case (MENU-MENU):	
 			weld_mode = 1;
 		break;
-		case 1:
+		case (MENU-4):
 			jump();
 			jump_page();
 		break;
-		case 2:
+		case (MENU-3):
 			system_page();
 		break;
-		case 3:
+		case (MENU-2):
 			info_page();
 		break;
-		case 4:
-			shutdown_page();//fix
-		break;
-		case 5:
+		//case 4:
+			//shutdown_page();
+		//break;
+		case (MENU-1):
 			temps_page();
 		break;
-		case 6:
+		case MENU:
 			R_count = menu_last_cnt;
 			RON_mode = 1;
 			main_menu();
-			menu_last_cnt = range(1, 0, 5, R_count);
+			menu_last_cnt = range(1, 0, (MENU-1), R_count);
 		break;
 		default:
-			page = 6;
+			page = MENU;
 		break;
 	}
 }
@@ -470,3 +473,6 @@ void jump(void){
 	}
 }
 
+/****************************_end_**************************************/
+
+/**********************************************************************/
